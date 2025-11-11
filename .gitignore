@@ -10,13 +10,6 @@ __pycache__/
 *.so
 .Python
 
-# Data files (too large for git)
-celeba_processed_128/
-masks/
-*.jpg
-*.png
-*.jpeg
-
 # IDE
 .vscode/
 .idea/
