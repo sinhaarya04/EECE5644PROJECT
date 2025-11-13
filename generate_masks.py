@@ -18,22 +18,28 @@ for percent, folder in levels.items():
     folder_path = os.path.join(output_root, folder)
     os.makedirs(folder_path, exist_ok=True)
 
-    missing_area = int((percent / 100) * size * size)
-    side = int(np.sqrt(missing_area))  # side length of square block
+    num_pixels_to_mask = int((percent / 100) * size * size)
 
     for i in range(num_masks):
         mask = np.zeros((size, size), dtype=np.uint8)
 
-        # random top-left corner of the block
-        x = np.random.randint(0, size - side)
-        y = np.random.randint(0, size - side)
-
-        # fill the block as missing (white)
-        mask[y:y+side, x:x+side] = 255
+        # Get all pixel positions
+        total_pixels = size * size
+        pixel_indices = np.arange(total_pixels)
+        
+        # Randomly select pixels to mask
+        masked_indices = np.random.choice(pixel_indices, size=num_pixels_to_mask, replace=False)
+        
+        # Convert flat indices to 2D coordinates
+        y_coords = masked_indices // size
+        x_coords = masked_indices % size
+        
+        # Set selected pixels as missing (white)
+        mask[y_coords, x_coords] = 255
 
         img = Image.fromarray(mask)
         img.save(os.path.join(folder_path, f"mask_{i}.png"))
 
     print(f"✅ {percent}% masks generated.")
 
-print("✅ All block masks created!")
+print("✅ All random pixel masks created!")
