@@ -5,8 +5,7 @@ Then install all the requirements using: pip install -r requirements.txt
 
 ## Dataset
 
-Download the **CelebA image dataset** from the following link: https://www.kaggle.com/datasets/jessicali9530/celeba-dataset/data
-
+Download the **CelebA image dataset** from the following link: https://www.kaggle.com/datasets/kimjiyeop/celeba-128-onlybg
 After downloading and extracting the dataset, follow these steps to prepare it for use.
 
 ## 1. Resize the Images
