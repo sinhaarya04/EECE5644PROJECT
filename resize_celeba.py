@@ -4,7 +4,7 @@ import os
 
 
 
-src = "copy here the path of the downloaded dataset"
+src = "path/to/downloaded/celeba"
 
 dst = "celeba_processed_128"
 
