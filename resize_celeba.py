@@ -4,7 +4,7 @@ import os
 
 
 
-src = "celeba_hq"
+src = "path/to/downloaded/celeba"
 
 dst = "celeba_processed_128"
 
