@@ -26,4 +26,14 @@ dataset_sample.png
 archive/
 celeba_processed_128/
 masks/
+mask_visualization.png
+masked_faces_visualization.png
+
+# Large datasets (too big for GitHub)
+CelebA-HQ-img/
+CelebAMask-HQ/
+*.jpg
+*.png
+!results_hf/**/*.png
+!RePaint/**/*.png
 

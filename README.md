@@ -1,20 +1,160 @@
-# CelebA Inpainting Dataset Setup
+# CelebA-MaskHQ Inpainting with RePaint
 
-Start by creating a virtual environment using the command: python -m venv venv
-Then install all the requirements using: pip install -r requirements.txt
+This project implements image inpainting on the CelebA-MaskHQ dataset using the RePaint diffusion model.
 
-## Dataset
+## Project Structure
 
-Download the **CelebA image dataset** from the following link: https://www.kaggle.com/datasets/kimjiyeop/celeba-128-onlybg
-After downloading and extracting the dataset, follow these steps to prepare it for use.
+```
+.
+├── CelebAMask-HQ/              # CelebA-MaskHQ dataset
+│   ├── CelebA-HQ-img/          # 256x256 face images
+│   └── CelebAMask-HQ-mask-anno/ # Feature masks (hair, eyes, etc.)
+├── RePaint/                    # RePaint implementation
+│   ├── confs/                  # Configuration files
+│   │   ├── celeba_256_20.yml  # 20% mask level
+│   │   ├── celeba_256_40.yml  # 40% mask level
+│   │   ├── celeba_256_60.yml  # 60% mask level
+│   │   └── celeba_256_80.yml  # 80% mask level
+│   ├── guided_diffusion/       # Core RePaint code
+│   │   └── custom_dataset.py   # Custom dataset loader for CelebA-MaskHQ
+│   └── test.py                 # Main inference script
+├── src/                        # Utility code
+│   ├── dataset.py              # Dataset utilities
+│   └── metrics.py              # Evaluation metrics (PSNR, SSIM)
+├── evaluate_metrics.py         # Evaluation script
+└── requirements.txt           # Python dependencies
+```
 
-## 1. Resize the Images
+## Features
 
-Use the provided script **`resize_celeba.py`** to resize all images in the dataset to `128×128` pixels.
+- **256x256 Resolution**: Direct use of CelebA-MaskHQ 256x256 images
+- **Feature Masks**: Uses semantic feature masks (hair, eyes, brows, mouth, nose, etc.)
+- **Multiple Mask Levels**: Configurations for 20%, 40%, 60%, and 80% mask coverage
+- **RePaint Integration**: Custom dataset loader that handles CelebA-MaskHQ structure
 
-Edit the paths in the script if needed:
+## Setup
 
-```python
-src = "path/to/downloaded/celeba"
+### 1. Install Dependencies
 
- 
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 2. Download CelebA-MaskHQ Dataset
+
+Download the CelebA-MaskHQ dataset and place it in the project root:
+- `CelebAMask-HQ/CelebA-HQ-img/` - Face images (256x256)
+- `CelebAMask-HQ/CelebAMask-HQ-mask-anno/` - Feature masks
+
+### 3. Download Pre-trained Model
+
+```bash
+cd RePaint
+bash download.sh
+```
+
+This downloads the pre-trained CelebA 256x256 diffusion model to `RePaint/data/pretrained/celeba256_250000.pt`
+
+## Usage
+
+### Run Inpainting
+
+```bash
+cd RePaint
+
+# Test with 100 images (20% masks)
+python test.py --conf_path confs/celeba_256_20.yml
+
+# Run for different mask levels
+python test.py --conf_path confs/celeba_256_40.yml
+python test.py --conf_path confs/celeba_256_60.yml
+python test.py --conf_path confs/celeba_256_80.yml
+```
+
+### Process Full Dataset
+
+Edit the config file to remove or set `max_len: null`:
+
+```yaml
+data:
+  eval:
+    celeba_20:
+      max_len: null  # Process all images
+```
+
+### Evaluate Results
+
+```bash
+python evaluate_metrics.py
+```
+
+## Configuration
+
+Each config file (`celeba_256_XX.yml`) contains:
+
+- **Model settings**: Architecture parameters for 256x256 images
+- **Data paths**: 
+  - `gt_path`: Path to CelebA-HQ-img directory
+  - `mask_path`: Path to CelebAMask-HQ-mask-anno directory
+- **Output paths**: Where to save inpainted results
+- **Processing settings**: Batch size, max images, etc.
+
+### Key Settings
+
+- `image_size: 256` - Image resolution
+- `use_celeba_maskhq: true` - Enable CelebA-MaskHQ feature mask loading
+- `random_mask: true` - Randomly select feature masks per image
+- `max_len: 100` - Process only first 100 images (for testing)
+
+## Dataset Format
+
+### Images
+- Location: `CelebAMask-HQ/CelebA-HQ-img/`
+- Format: JPG files named `0.jpg`, `1.jpg`, etc.
+- Resolution: 256x256
+
+### Masks
+- Location: `CelebAMask-HQ/CelebAMask-HQ-mask-anno/`
+- Structure: Subdirectories per image (e.g., `0/`, `1/`)
+- Features: Each directory contains feature masks:
+  - `hair.png`, `l_eye.png`, `r_eye.png`
+  - `l_brow.png`, `r_brow.png`
+  - `nose.png`, `mouth.png`, `l_lip.png`, `u_lip.png`
+  - `skin.png`, `neck.png`, `cloth.png`, etc.
+
+The dataset loader randomly selects one feature mask per image for inpainting.
+
+## Output
+
+Results are saved in `RePaint/log/celeba_256_XX/`:
+- `inpainted/` - Inpainted images
+- `gt/` - Ground truth images
+- `gt_masked/` - Masked input images
+- `gt_keep_mask/` - Masks used
+
+## Mask Format
+
+RePaint expects masks where:
+- **White (255) = KEEP** (known regions)
+- **Black (0) = GENERATE** (unknown regions)
+
+The custom dataset loader automatically handles CelebA-MaskHQ feature masks and converts them to RePaint's format.
+
+See `RePaint/MASK_FORMAT_EXPLAINED.md` for detailed explanation.
+
+## Requirements
+
+- Python 3.7+
+- PyTorch
+- NumPy
+- Pillow
+- PyYAML
+- blobfile
+
+See `requirements.txt` for complete list.
+
+## License
+
+This project uses the RePaint implementation. Please refer to the original RePaint repository for licensing information.
