@@ -337,7 +337,7 @@ def main():
     parser.add_argument("--image_dir", type=str, default=None,
                        help="Directory containing images")
     parser.add_argument("--mask_base_dir", type=str, default=None,
-                       help="Base directory containing mask folders")
+                       help="Base directory containing mask coordinate folders (e.g., mask_coords)")
     parser.add_argument("--checkpoint_dir", type=str, default=None,
                        help="Directory to save checkpoints")
     parser.add_argument("--results_dir", type=str, default=None,
@@ -372,7 +372,7 @@ def main():
         args.image_dir = os.path.join(project_root, args.image_dir)
     
     if args.mask_base_dir is None:
-        args.mask_base_dir = project_root
+        args.mask_base_dir = os.path.join(project_root, "mask_coords")
     elif not os.path.isabs(args.mask_base_dir):
         args.mask_base_dir = os.path.join(project_root, args.mask_base_dir)
     
@@ -430,7 +430,7 @@ def main():
         print("=" * 80)
         
         # Construct mask directory path
-        mask_dir = os.path.join(args.mask_base_dir, f"celeba_mask{mask_level}_faces")
+        mask_dir = os.path.join(args.mask_base_dir, f"{mask_level}")
         
         if not os.path.exists(mask_dir):
             print(f"Warning: Mask directory not found: {mask_dir}")
@@ -471,21 +471,21 @@ def main():
             batch_size=args.batch_size,
             shuffle=True,
             collate_fn=collate_fn_cnp,
-            num_workers=2
+            num_workers=0
         )
         val_loader = DataLoader(
             val_dataset,
             batch_size=args.batch_size,
             shuffle=False,
             collate_fn=collate_fn_cnp,
-            num_workers=2
+            num_workers=0
         )
         test_loader = DataLoader(
             test_dataset,
             batch_size=args.batch_size,
             shuffle=False,
             collate_fn=collate_fn_cnp,
-            num_workers=2
+            num_workers=0
         )
         
         # Create and train model
@@ -559,21 +559,21 @@ def main():
             batch_size=args.batch_size,
             shuffle=True,
             collate_fn=collate_fn_convcnp,
-            num_workers=2
+            num_workers=0
         )
         val_loader_conv = DataLoader(
             val_dataset_conv,
             batch_size=args.batch_size,
             shuffle=False,
             collate_fn=collate_fn_convcnp,
-            num_workers=2
+            num_workers=0
         )
         test_loader_conv = DataLoader(
             test_dataset_conv,
             batch_size=args.batch_size,
             shuffle=False,
             collate_fn=collate_fn_convcnp,
-            num_workers=2
+            num_workers=0
         )
         
         # Create and train model

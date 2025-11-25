@@ -291,8 +291,8 @@ def main():
                        help="Model to train")
     parser.add_argument("--image_dir", type=str, default="celeba_hq_256",
                        help="Directory containing images")
-    parser.add_argument("--mask_dir", type=str, default="celeba_mask40_faces",
-                       help="Directory containing masks")
+    parser.add_argument("--mask_dir", type=str, default="mask_coords/40",
+                       help="Directory containing mask coordinate files (e.g., mask_coords/40)")
     parser.add_argument("--checkpoint_dir", type=str, default="checkpoints_np",
                        help="Directory to save checkpoints")
     parser.add_argument("--batch_size", type=int, default=4,

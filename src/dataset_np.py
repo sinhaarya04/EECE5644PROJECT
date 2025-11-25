@@ -1,13 +1,16 @@
 """
-Dataset adapter for Neural Processes
-Extracts context points from non-black pixels in masked images
+Dataset adapter for Neural Processes.
+Derives true binary masks by comparing original and masked images.
 """
 import os
-from PIL import Image
-import torch
-from torch.utils.data import Dataset
-import random
+import re
+from typing import Dict
+
 import numpy as np
+import torch
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 class NPImageDataset(Dataset):
@@ -25,7 +28,8 @@ class NPImageDataset(Dataset):
         transform=None,
         normalize_coords=True,
         max_context_points=None,
-        model_type='cnp'  # 'cnp' or 'convcnp'
+        model_type='cnp',  # 'cnp' or 'convcnp'
+        mask_diff_threshold=1e-3
     ):
         self.img_dir = img_dir
         self.mask_dir = mask_dir
@@ -33,22 +37,89 @@ class NPImageDataset(Dataset):
         self.normalize_coords = normalize_coords
         self.max_context_points = max_context_points
         self.model_type = model_type
+        self.mask_diff_threshold = mask_diff_threshold
         
         self.images = sorted([f for f in os.listdir(img_dir) 
                              if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
-        self.masks = sorted([f for f in os.listdir(mask_dir) 
-                            if f.lower().endswith(('.jpg', '.jpeg', '.png'))])
+        self.masks = sorted(
+            [
+                f
+                for f in os.listdir(mask_dir)
+                if f.lower().endswith((".npz", ".npy", ".json"))
+            ],
+            key=self._mask_sort_key,
+        )
+        self.mask_pairs = self._build_pairs(self.images, self.masks)
+        
+        if len(self.mask_pairs) == 0:
+            raise ValueError(f"No mask coordinate files found in {mask_dir}")
+
+        missing = [img for img in self.images if img not in self.mask_pairs]
+        if missing:
+            preview = ", ".join(missing[:5])
+            raise ValueError(
+                "Mask directory is missing coordinates for some images. "
+                f"First missing entries: {preview}"
+            )
     
     def __len__(self):
         return len(self.images)
+
+    @staticmethod
+    def _mask_sort_key(filename: str, width: int = 5):
+        """Return zero-padded numeric suffix for consistent ordering."""
+        stem = os.path.splitext(filename)[0]
+        match = re.search(r'(\d+)$', stem)
+        if match:
+            return match.group(1).zfill(width)
+        return stem
+    
+    @staticmethod
+    def _build_pairs(images, masks) -> Dict[str, str]:
+        """Map each image filename to its corresponding mask file by stem."""
+        mask_lookup = {}
+        for mask_name in masks:
+            mask_lookup[os.path.splitext(mask_name)[0]] = mask_name
+
+        paired = {}
+        for image_name in images:
+            stem = os.path.splitext(image_name)[0]
+            if stem in mask_lookup:
+                paired[image_name] = mask_lookup[stem]
+        return paired
+
+    @staticmethod
+    def _load_mask_coords(mask_path: str) -> np.ndarray:
+        ext = os.path.splitext(mask_path)[1].lower()
+        if ext == ".npz":
+            data = np.load(mask_path)
+            if "coords" not in data:
+                raise ValueError(f"'coords' array missing in {mask_path}")
+            coords = data["coords"]
+        elif ext == ".npy":
+            coords = np.load(mask_path)
+        elif ext == ".json":
+            import json
+
+            with open(mask_path, "r") as f:
+                payload = json.load(f)
+            coords = np.array(payload["coords"], dtype=np.int64)
+        else:
+            raise ValueError(f"Unsupported mask format: {mask_path}")
+
+        if coords.ndim != 2 or coords.shape[1] != 2:
+            raise ValueError(
+                f"Mask coordinates must have shape [N, 2], got {coords.shape} for {mask_path}"
+            )
+        return coords.astype(np.int64, copy=False)
     
     def extract_context_points(self, img, mask):
         """
-        Extract context points from non-black pixels.
+        Extract context points using the true mask map.
         
         Args:
-            img: Image tensor [C, H, W] in range [0, 1]
-            mask: Mask tensor [1, H, W] in range [0, 1]
+            img: Original image tensor [C, H, W]
+            mask: Mask tensor [1, H, W] where 1 = masked
         
         Returns:
             context_points: [N_c, 5] where columns are (x, y, r, g, b)
@@ -60,23 +131,17 @@ class NPImageDataset(Dataset):
         
         H, W = img_np.shape[:2]
         
-        # Find non-black pixels (context points)
-        # A pixel is context if it's not masked AND not black
-        # In our setup: masked_img = img * (1 - mask), so black pixels are masked
-        # We want pixels where img_np is not all zeros
+        # Context pixels are where mask == 0 (known region)
+        context_mask = mask_np < 0.5
         
-        # Check if pixel is non-black (has any non-zero channel)
-        non_black = np.any(img_np > 0.01, axis=2)  # Threshold to account for noise
-        
-        # Get coordinates of non-black pixels
-        y_coords, x_coords = np.where(non_black)
+        y_coords, x_coords = np.where(context_mask)
         
         if len(y_coords) == 0:
             # If no context points, use a few random points
             y_coords = np.random.randint(0, H, size=min(100, H*W))
             x_coords = np.random.randint(0, W, size=min(100, H*W))
         
-        # Get RGB values at these coordinates
+        # Get RGB values at these coordinates from the original image
         rgb_values = img_np[y_coords, x_coords]  # [N, 3]
         
         # Normalize coordinates to [0, 1] or [-1, 1]
@@ -131,25 +196,33 @@ class NPImageDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.images[idx])
         img = Image.open(img_path).convert("RGB")
         
-        # Pick a random mask file
-        mask_name = random.choice(self.masks)
+        # Load mask coordinates for this image
+        mask_name = self.mask_pairs.get(self.images[idx])
+        if mask_name is None:
+            raise KeyError(f"No mask coordinates found for {self.images[idx]}")
         mask_path = os.path.join(self.mask_dir, mask_name)
-        mask = Image.open(mask_path).convert("L")
+        mask_coords = self._load_mask_coords(mask_path)
         
         if self.transform:
-            img = self.transform(img)  # [3, H, W] in range [0, 1]
-            mask = self.transform(mask)  # [1, H, W] in range [0, 1]
-        
-        # Ensure mask is normalized to [0, 1]
-        if mask.max() > 1.0:
-            mask = mask / 255.0
-        
-        # Create masked image
-        masked_img = img * (1 - mask)
+            img = self.transform(img)        # [3, H, W]
+        else:
+            to_tensor = transforms.ToTensor()
+            img = to_tensor(img)
+
+        masked_img = img.clone()
+        H, W = img.shape[1], img.shape[2]
+
+        mask = torch.zeros((1, H, W), dtype=torch.float32)
+        if mask_coords.size > 0:
+            coords_tensor = torch.from_numpy(mask_coords)
+            y_idx = torch.clamp(coords_tensor[:, 0], 0, H - 1)
+            x_idx = torch.clamp(coords_tensor[:, 1], 0, W - 1)
+            mask[0, y_idx, x_idx] = 1.0
+            masked_img[:, y_idx, x_idx] = 0.0
         
         if self.model_type == 'cnp':
             # Extract context points for CNP
-            context_points, context_values = self.extract_context_points(masked_img, mask)
+            context_points, context_values = self.extract_context_points(img, mask)
             
             # Get target points (all pixels)
             H, W = img.shape[1], img.shape[2]
