@@ -57,32 +57,6 @@ bash download.sh
 
 This downloads the pre-trained CelebA 256x256 diffusion model to `RePaint/data/pretrained/celeba256_250000.pt`
 
-## Usage
-
-### Run Inpainting
-
-```bash
-cd RePaint
-
-# Test with 100 images (20% masks)
-python test.py --conf_path confs/celeba_256_20.yml
-
-# Run for different mask levels
-python test.py --conf_path confs/celeba_256_40.yml
-python test.py --conf_path confs/celeba_256_60.yml
-python test.py --conf_path confs/celeba_256_80.yml
-```
-
-### Process Full Dataset
-
-Edit the config file to remove or set `max_len: null`:
-
-```yaml
-data:
-  eval:
-    celeba_20:
-      max_len: null  # Process all images
-```
 
 ### Evaluate Results
 
@@ -115,34 +89,12 @@ Each config file (`celeba_256_XX.yml`) contains:
 - Format: JPG files named `0.jpg`, `1.jpg`, etc.
 - Resolution: 256x256
 
-### Masks
-- Location: `CelebAMask-HQ/CelebAMask-HQ-mask-anno/`
-- Structure: Subdirectories per image (e.g., `0/`, `1/`)
-- Features: Each directory contains feature masks:
-  - `hair.png`, `l_eye.png`, `r_eye.png`
-  - `l_brow.png`, `r_brow.png`
-  - `nose.png`, `mouth.png`, `l_lip.png`, `u_lip.png`
-  - `skin.png`, `neck.png`, `cloth.png`, etc.
-
-The dataset loader randomly selects one feature mask per image for inpainting.
-
-## Output
-
-Results are saved in `RePaint/log/celeba_256_XX/`:
-- `inpainted/` - Inpainted images
-- `gt/` - Ground truth images
-- `gt_masked/` - Masked input images
-- `gt_keep_mask/` - Masks used
-
 ## Mask Format
 
 RePaint expects masks where:
 - **White (255) = KEEP** (known regions)
 - **Black (0) = GENERATE** (unknown regions)
 
-The custom dataset loader automatically handles CelebA-MaskHQ feature masks and converts them to RePaint's format.
-
-See `RePaint/MASK_FORMAT_EXPLAINED.md` for detailed explanation.
 
 ## Requirements
 
