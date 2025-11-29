@@ -10,9 +10,24 @@ import os
 import numpy as np
 from PIL import Image
 import torch
-from metrics import calculate_psnr, calculate_ssim
+import sys
+
+# Ensure `src` directory is in the import path when run from project root
+# so local modules like `metrics` resolve consistently both in interactive
+# sessions and when executed with `python src/evaluate.py`.
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+try:
+    # Normal import when running inside the src package folder
+    from metrics import calculate_psnr, calculate_ssim
+except Exception:
+    # Fallback import (when running python from repo root with src in sys.path)
+    from src.metrics import calculate_psnr, calculate_ssim
 import json
 import argparse
+
+import sys, os
+#sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 def image_to_tensor(img):
     """Convert PIL Image to tensor in [0, 1] range"""
@@ -57,12 +72,48 @@ def find_matching_inpainted(original_file, inpainted_dir):
     if os.path.exists(inpainted_path):
         return inpainted_path
     
-    # Try common suffixes
+    # Try common suffixes (same extension)
     name, ext = os.path.splitext(original_file)
     for suffix in ['_inpainted', '_result', '_output', '_predicted']:
         alt_path = os.path.join(inpainted_dir, f"{name}{suffix}{ext}")
         if os.path.exists(alt_path):
             return alt_path
+
+    # Try same name but with alternate common extensions
+    alt_exts = ['.png', '.jpg', '.jpeg']
+    for ae in alt_exts:
+        if ae == ext.lower():
+            continue
+        alt = os.path.join(inpainted_dir, f"{name}{ae}")
+        if os.path.exists(alt):
+            return alt
+        for suffix in ['_inpainted', '_result', '_output', '_predicted']:
+            alt2 = os.path.join(inpainted_dir, f"{name}{suffix}{ae}")
+            if os.path.exists(alt2):
+                return alt2
+
+    # Try to find by numeric index within filename (handles filenames like 'Abdullah Gul_0_inpainted.png')
+    import re
+    # Extract numeric index at the end of basename (handles '0.png' and 'Name_0.png')
+    name_no_ext = os.path.splitext(original_file)[0]
+    m = re.search(r"(\d+)$", name_no_ext)
+    if m:
+        idx = m.group(1)
+        # Prefer *_<idx>_inpainted.*
+        for entry in os.listdir(inpainted_dir):
+            if not entry.lower().endswith(('.jpg', '.jpeg', '.png')):
+                continue
+            # Find patterns that contain the index
+            if re.search(rf"(?:_|-){idx}(?:_|\.|$)", entry):
+                # Prefer a file with _inpainted in its name
+                if '_inpainted' in entry:
+                    return os.path.join(inpainted_dir, entry)
+        # If no _inpainted variants, return any file ending with _<idx>.* or containing _<idx> before extension
+        for entry in os.listdir(inpainted_dir):
+            if not entry.lower().endswith(('.jpg', '.jpeg', '.png')):
+                continue
+            if re.search(rf"(?:_|-){idx}(?:\.|$)", entry):
+                return os.path.join(inpainted_dir, entry)
     
     return None
 
@@ -145,7 +196,7 @@ def evaluate_repaint_format(results_dir, mask_levels=[20, 40, 60, 80]):
     
     return all_results
 
-def evaluate_general_format(original_dir, inpainted_dir):
+def evaluate_general_format(original_dir, inpainted_dir, show_pairs=False):
     """
     Evaluate general model results (separate original and inpainted directories)
     """
@@ -174,6 +225,8 @@ def evaluate_general_format(original_dir, inpainted_dir):
         
         # Find matching inpainted file
         inpainted_path = find_matching_inpainted(orig_file, inpainted_dir)
+        if show_pairs:
+            print(f"Match check: {orig_file} -> {inpainted_path}")
         
         if inpainted_path is None:
             print(f"Warning: No matching inpainted image for {orig_file}, skipping...")
@@ -305,6 +358,8 @@ Examples:
     # Output
     parser.add_argument("--output", type=str, default=None,
                        help="Output JSON file path (default: metrics_results.json in results directory)")
+    parser.add_argument("--show_pairs", action='store_true',
+                       help="Print matched original->inpainted pairs for debugging")
     
     args = parser.parse_args()
     
@@ -315,7 +370,7 @@ Examples:
         output_file = args.output or os.path.join(args.results_dir, "metrics_results.json")
     elif args.original_dir is not None and args.inpainted_dir is not None:
         # General format
-        all_results = evaluate_general_format(args.original_dir, args.inpainted_dir)
+        all_results = evaluate_general_format(args.original_dir, args.inpainted_dir, show_pairs=args.show_pairs)
         output_file = args.output or os.path.join(args.inpainted_dir, "evaluation_results.json")
     else:
         print("Error: Must specify either:")
