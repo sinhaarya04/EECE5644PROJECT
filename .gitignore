@@ -38,4 +38,5 @@ CelebAMask-HQ/
 *.png
 !results_hf/**/*.png
 !RePaint/**/*.png
+*.zip
 
