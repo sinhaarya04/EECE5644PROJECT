@@ -1,0 +1,46 @@
+Metrics Summary for Mask Level 20%
+================================================================================
+
+Number of images: 5
+k value: 8
+
+k-NN Uniform (k=8):
+  PSNR: 38.42 ± 2.76 dB
+  SSIM: 0.9860 ± 0.0031
+
+k-NN Distance Weighted (k=8):
+  PSNR: 39.02 ± 2.79 dB
+  SSIM: 0.9876 ± 0.0028
+
+Navier-Stokes Inpainting:
+  PSNR: 39.46 ± 2.89 dB
+  SSIM: 0.9889 ± 0.0027
+
+
+Individual Results:
+--------------------------------------------------------------------------------
+
+Image 1:
+  k-NN Uniform (k=8)                 : PSNR=38.55 dB, SSIM=0.9871
+  k-NN Distance Weighted (k=8)       : PSNR=39.16 dB, SSIM=0.9886
+  Navier-Stokes Inpainting           : PSNR=39.56 dB, SSIM=0.9899
+
+Image 2:
+  k-NN Uniform (k=8)                 : PSNR=41.32 dB, SSIM=0.9890
+  k-NN Distance Weighted (k=8)       : PSNR=41.95 dB, SSIM=0.9904
+  Navier-Stokes Inpainting           : PSNR=42.61 dB, SSIM=0.9915
+
+Image 3:
+  k-NN Uniform (k=8)                 : PSNR=41.24 dB, SSIM=0.9876
+  k-NN Distance Weighted (k=8)       : PSNR=41.88 dB, SSIM=0.9891
+  Navier-Stokes Inpainting           : PSNR=42.50 dB, SSIM=0.9905
+
+Image 4:
+  k-NN Uniform (k=8)                 : PSNR=34.00 dB, SSIM=0.9801
+  k-NN Distance Weighted (k=8)       : PSNR=34.54 dB, SSIM=0.9823
+  Navier-Stokes Inpainting           : PSNR=35.08 dB, SSIM=0.9839
+
+Image 5:
+  k-NN Uniform (k=8)                 : PSNR=36.99 dB, SSIM=0.9863
+  k-NN Distance Weighted (k=8)       : PSNR=37.55 dB, SSIM=0.9878
+  Navier-Stokes Inpainting           : PSNR=37.58 dB, SSIM=0.9887

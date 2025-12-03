@@ -1,160 +1,291 @@
-# CelebA-MaskHQ Inpainting with RePaint
+# Image Inpainting Project
 
-This project implements image inpainting on the CelebA-MaskHQ dataset using the RePaint diffusion model.
+A comprehensive image inpainting project implementing multiple methods including baseline techniques (k-NN, Navier-Stokes), Neural Processes (CNP, ConvCNP), and diffusion models (RePaint).
 
 ## Project Structure
 
 ```
 .
-├── CelebAMask-HQ/              # CelebA-MaskHQ dataset
-│   ├── CelebA-HQ-img/          # 256x256 face images
-│   └── CelebAMask-HQ-mask-anno/ # Feature masks (hair, eyes, etc.)
-├── RePaint/                    # RePaint implementation
-│   ├── confs/                  # Configuration files
-│   │   ├── celeba_256_20.yml  # 20% mask level
-│   │   ├── celeba_256_40.yml  # 40% mask level
-│   │   ├── celeba_256_60.yml  # 60% mask level
-│   │   └── celeba_256_80.yml  # 80% mask level
-│   ├── guided_diffusion/       # Core RePaint code
-│   │   └── custom_dataset.py   # Custom dataset loader for CelebA-MaskHQ
-│   └── test.py                 # Main inference script
-├── src/                        # Utility code
-│   ├── dataset.py              # Dataset utilities
-│   └── metrics.py              # Evaluation metrics (PSNR, SSIM)
-├── evaluate_metrics.py         # Evaluation script
-└── requirements.txt           # Python dependencies
+├── src/                          # Source code
+│   ├── core/                     # Core utilities and metrics
+│   │   ├── utils.py             # Image utilities, inpainting methods
+│   │   └── metrics.py           # PSNR, SSIM calculations
+│   ├── models/                   # Model definitions
+│   │   ├── cnp.py               # Conditional Neural Process
+│   │   └── convcnp.py           # Convolutional Neural Process
+│   ├── data/                     # Dataset classes
+│   │   ├── datasets.py          # CelebA dataset
+│   │   └── datasets_np.py       # Neural Process dataset
+│   ├── training/                  # Training scripts
+│   │   ├── train_np.py          # Train CNP/ConvCNP
+│   │   └── train_evaluate_all_masks.py  # Train for all mask levels
+│   ├── evaluation/               # Evaluation scripts
+│   │   ├── evaluate_np.py       # Evaluate Neural Processes
+│   │   └── evaluate_results.py  # Evaluate RePaint results
+│   ├── inpainting/               # Inpainting implementations
+│   │   ├── run_inpainting.py    # Baseline methods (LFW dataset)
+│   │   ├── run_inpainting_celeba.py  # Baseline methods (CelebA)
+│   │   └── run_repaint_hf.py    # RePaint diffusion model
+│   ├── masks/                    # Mask generation utilities
+│   │   ├── generate_masks.py     # Generate mask images
+│   │   ├── generate_masks_np.py # Generate mask coordinates
+│   │   ├── rename_masks.py       # Rename mask files
+│   │   └── check_mask_coverage.py  # Verify mask coverage
+│   ├── visualization/            # Visualization scripts
+│   │   ├── plot_jolie_results.py # Plot Jolie comparison
+│   │   ├── diffusion_results_plot.py  # Plot diffusion results
+│   │   ├── visualize_results.py  # Visualize inpainting results
+│   │   ├── visualize_masks.py   # Visualize masks
+│   │   └── visualize_masked_faces.py  # Visualize masked faces
+│   └── scripts/                  # Utility scripts
+│       ├── cross_validation.py   # Cross-validation for k optimization
+│       └── nearest_neighbors.py  # k-NN inpainting pipeline
+├── dataset/                      # Dataset directory
+│   ├── lfw_100_people/          # LFW dataset images
+│   ├── celeba_hq_256/          # CelebA-HQ images
+│   ├── mask_coords/            # Mask coordinate files (.npz)
+│   └── [mask_levels]/          # Mask directories (20, 40, 60, 80)
+├── checkpoints_np/              # Neural Process model checkpoints
+├── results_np/                   # Neural Process results
+├── results_hf/                   # RePaint (HuggingFace) results
+└── requirements.txt             # Python dependencies
 ```
 
 ## Features
 
-- **256x256 Resolution**: Direct use of CelebA-MaskHQ 256x256 images
-- **Feature Masks**: Uses semantic feature masks (hair, eyes, brows, mouth, nose, etc.)
-- **Multiple Mask Levels**: Configurations for 20%, 40%, 60%, and 80% mask coverage
-- **RePaint Integration**: Custom dataset loader that handles CelebA-MaskHQ structure
+- **Baseline Methods**: k-NN interpolation (uniform and distance-weighted), Navier-Stokes inpainting
+- **Neural Processes**: Conditional Neural Process (CNP) and Convolutional Neural Process (ConvCNP)
+- **Diffusion Models**: RePaint using Hugging Face Diffusers
+- **Cross-Validation**: Automatic k-value optimization for k-NN methods
+- **Comprehensive Evaluation**: PSNR, SSIM metrics with detailed statistics
+- **Visualization**: Comparison plots, error heatmaps, comprehensive visualizations
 
-## Setup
+## Installation
 
-### 1. Install Dependencies
+### 1. Create Virtual Environment
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download CelebA-MaskHQ Dataset
+### 3. Prepare Dataset
 
-Download the CelebA-MaskHQ dataset and place it in the project root:
-- `CelebAMask-HQ/CelebA-HQ-img/` - Face images (256x256)
-- `CelebAMask-HQ/CelebAMask-HQ-mask-anno/` - Feature masks
+Organize your dataset in the following structure:
 
-### 3. Download Pre-trained Model
-
-```bash
-cd RePaint
-bash download.sh
 ```
-
-This downloads the pre-trained CelebA 256x256 diffusion model to `RePaint/data/pretrained/celeba256_250000.pt`
+dataset/
+├── lfw_100_people/          # LFW dataset images
+├── celeba_hq_256/          # CelebA-HQ images (256x256)
+├── mask_coords/            # Mask coordinate files for CelebA
+│   ├── 20/                # 20% mask level
+│   ├── 40/                # 40% mask level
+│   ├── 60/                # 60% mask level
+│   └── 80/                # 80% mask level
+├── 20/                     # Mask images for LFW (20% level)
+├── 40/                     # Mask images for LFW (40% level)
+├── 60/                     # Mask images for LFW (60% level)
+└── 80/                     # Mask images for LFW (80% level)
+```
 
 ## Usage
 
-### Run Inpainting
+### Baseline Methods
+
+#### LFW Dataset
 
 ```bash
-cd RePaint
+# Run baseline inpainting on LFW dataset
+python src/inpainting/run_inpainting.py \
+    --input_dir dataset/lfw_100_people \
+    --mask_root dataset \
+    --output_dir dataset/inpainting_results_lfw \
+    --n_images 100 \
+    --n_visualize 10
 
-# Test with 100 images (20% masks)
-python test.py --conf_path confs/celeba_256_20.yml
-
-# Run for different mask levels
-python test.py --conf_path confs/celeba_256_40.yml
-python test.py --conf_path confs/celeba_256_60.yml
-python test.py --conf_path confs/celeba_256_80.yml
+# Filter for specific person
+python src/inpainting/run_inpainting.py \
+    --input_dir dataset/lfw_100_people \
+    --mask_root dataset \
+    --output_dir dataset/inpainting_results_lfw \
+    --person_filter "Angelina_Jolie"
 ```
 
-### Process Full Dataset
-
-Edit the config file to remove or set `max_len: null`:
-
-```yaml
-data:
-  eval:
-    celeba_20:
-      max_len: null  # Process all images
-```
-
-### Evaluate Results
+#### CelebA Dataset
 
 ```bash
-python evaluate_metrics.py
+# Run baseline inpainting on CelebA dataset
+python src/inpainting/run_inpainting_celeba.py \
+    --input_dir dataset/celeba_hq_256 \
+    --mask_coords_dir dataset/mask_coords \
+    --output_dir dataset/inpainting_results \
+    --n_images 100 \
+    --n_visualize 100
 ```
 
-## Configuration
+### Cross-Validation for k Optimization
 
-Each config file (`celeba_256_XX.yml`) contains:
+```bash
+# Find optimal k values using cross-validation
+python src/scripts/cross_validation.py \
+    --input_dir dataset/lfw_100_people \
+    --mask_root dataset \
+    --output_dir dataset/cv_results
+```
 
-- **Model settings**: Architecture parameters for 256x256 images
-- **Data paths**: 
-  - `gt_path`: Path to CelebA-HQ-img directory
-  - `mask_path`: Path to CelebAMask-HQ-mask-anno directory
-- **Output paths**: Where to save inpainted results
-- **Processing settings**: Batch size, max images, etc.
+### Neural Processes (CNP/ConvCNP)
 
-### Key Settings
+#### Training
 
-- `image_size: 256` - Image resolution
-- `use_celeba_maskhq: true` - Enable CelebA-MaskHQ feature mask loading
-- `random_mask: true` - Randomly select feature masks per image
-- `max_len: 100` - Process only first 100 images (for testing)
+```bash
+# Train ConvCNP
+python src/training/train_np.py \
+    --model convcnp \
+    --image_dir dataset/celeba_hq_256 \
+    --mask_dir dataset/mask_coords/40 \
+    --checkpoint_dir checkpoints_np \
+    --batch_size 4 \
+    --epochs 50 \
+    --learning_rate 1e-4
 
-## Dataset Format
+# Train for all mask levels
+python src/training/train_evaluate_all_masks.py \
+    --image_dir dataset/celeba_hq_256 \
+    --mask_coords_root dataset/mask_coords \
+    --checkpoint_dir checkpoints_np \
+    --output_dir results_np \
+    --epochs 50
+```
 
-### Images
-- Location: `CelebAMask-HQ/CelebA-HQ-img/`
-- Format: JPG files named `0.jpg`, `1.jpg`, etc.
-- Resolution: 256x256
+#### Evaluation
 
-### Masks
-- Location: `CelebAMask-HQ/CelebAMask-HQ-mask-anno/`
-- Structure: Subdirectories per image (e.g., `0/`, `1/`)
-- Features: Each directory contains feature masks:
-  - `hair.png`, `l_eye.png`, `r_eye.png`
-  - `l_brow.png`, `r_brow.png`
-  - `nose.png`, `mouth.png`, `l_lip.png`, `u_lip.png`
-  - `skin.png`, `neck.png`, `cloth.png`, etc.
+```bash
+# Evaluate ConvCNP
+python src/evaluation/evaluate_np.py \
+    --model convcnp \
+    --checkpoint_dir checkpoints_np \
+    --image_dir dataset/celeba_hq_256 \
+    --mask_dir dataset/mask_coords/40 \
+    --output_dir results_np/convcnp \
+    --batch_size 4
+```
 
-The dataset loader randomly selects one feature mask per image for inpainting.
+### Diffusion Model (RePaint)
 
-## Output
+```bash
+# Run RePaint on CelebA dataset
+python src/inpainting/run_repaint_hf.py \
+    --image_dir dataset/celeba_hq_256 \
+    --mask_dir dataset \
+    --output_dir results_hf \
+    --mask_levels 20 40 60 80 \
+    --num_images 10 \
+    --num_inference_steps 250
 
-Results are saved in `RePaint/log/celeba_256_XX/`:
-- `inpainted/` - Inpainted images
-- `gt/` - Ground truth images
-- `gt_masked/` - Masked input images
-- `gt_keep_mask/` - Masks used
+# Quick test with fewer steps
+python src/inpainting/run_repaint_hf.py \
+    --image_dir dataset/celeba_hq_256 \
+    --mask_dir dataset \
+    --output_dir results_hf \
+    --mask_levels 20 40 \
+    --num_images 2 \
+    --num_inference_steps 50
+```
 
-## Mask Format
+### Visualization
 
-RePaint expects masks where:
-- **White (255) = KEEP** (known regions)
-- **Black (0) = GENERATE** (unknown regions)
+```bash
+# Plot Jolie comparison results
+python src/visualization/plot_jolie_results.py \
+    --results_dir dataset/jolie_results \
+    --output_dir dataset/jolie_comparisons
 
-The custom dataset loader automatically handles CelebA-MaskHQ feature masks and converts them to RePaint's format.
+# Plot diffusion results
+python src/visualization/diffusion_results_plot.py \
+    --results_dir diffusion_results \
+    --output_dir diffusion_comparisons
+```
 
-See `RePaint/MASK_FORMAT_EXPLAINED.md` for detailed explanation.
+## Methods Overview
+
+### Baseline Methods
+
+1. **k-NN Uniform**: k-nearest neighbors with uniform weighting
+2. **k-NN Distance**: k-nearest neighbors with inverse distance weighting
+3. **Navier-Stokes**: OpenCV's Navier-Stokes inpainting algorithm
+
+### Neural Processes
+
+1. **CNP (Conditional Neural Process)**: Point-based neural process model
+2. **ConvCNP (Convolutional Neural Process)**: Convolutional variant for images
+
+### Diffusion Models
+
+1. **RePaint**: Denoising diffusion model with resampling for inpainting
+
+## Output Structure
+
+### Baseline Methods Output
+
+```
+output_dir/
+├── 20%/                    # 20% mask level results
+│   ├── knn_uniform/       # k-NN uniform results
+│   ├── knn_distance/      # k-NN distance results
+│   ├── navier_stokes/     # Navier-Stokes results
+│   └── masked_images/     # Masked input images
+├── 40%/                    # 40% mask level results
+├── 60%/                    # 60% mask level results
+├── 80%/                    # 80% mask level results
+├── comprehensive_comparisons/  # Comparison plots
+├── summary_statistics.txt      # Summary metrics
+└── summary_statistics.png      # Summary plots
+```
+
+### Neural Process Output
+
+```
+results_np/
+├── convcnp/               # ConvCNP results
+│   ├── convcnp_sample.png # Sample results
+│   └── metrics_results.json  # Metrics
+└── cnp/                   # CNP results
+    └── ...
+```
+
+## Metrics
+
+All methods are evaluated using:
+- **PSNR** (Peak Signal-to-Noise Ratio): Higher is better (dB)
+- **SSIM** (Structural Similarity Index): Higher is better (0-1)
+
+## Command-Line Arguments
+
+All scripts support command-line arguments for paths and parameters. Use `--help` to see available options:
+
+```bash
+python src/inpainting/run_inpainting.py --help
+```
 
 ## Requirements
 
 - Python 3.7+
-- PyTorch
-- NumPy
+- PyTorch 2.0+
+- OpenCV 4.7+
+- NumPy, SciPy
+- Matplotlib, scikit-image
 - Pillow
-- PyYAML
-- blobfile
+- tqdm
+- diffusers, transformers, accelerate (for RePaint)
 
-See `requirements.txt` for complete list.
+See `requirements.txt` for complete list with versions.
 
 ## License
 
-This project uses the RePaint implementation. Please refer to the original RePaint repository for licensing information.
+This project implements various inpainting methods for research purposes. Please refer to individual method implementations for their respective licenses.

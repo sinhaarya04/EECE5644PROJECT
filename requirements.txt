@@ -1,9 +1,19 @@
+# Core dependencies
 torch>=2.0.0
 torchvision>=0.15.0
 numpy>=1.24.0
 pillow>=9.0.0
 matplotlib>=3.6.0
 scikit-image>=0.20.0
+
+# Computer vision
+opencv-python>=4.7.0
+scipy>=1.10.0
+
+# Progress bars
+tqdm>=4.65.0
+
+# Diffusion models (for RePaint)
 diffusers>=0.21.0
 accelerate>=0.20.0
 transformers>=4.30.0
