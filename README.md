@@ -1,6 +1,6 @@
 # Image Inpainting Project
 
-A comprehensive image inpainting project implementing multiple methods including baseline techniques (k-NN, Navier-Stokes), Neural Processes (CNP, ConvCNP), and diffusion models (RePaint).
+A comprehensive image inpainting project implementing multiple methods including baseline techniques (k-NN, Navier-Stokes), Neural Processes (CNP, ConvCNP), and diffusion models (RePaint). This project also includes support for CelebA-MaskHQ dataset with RePaint integration.
 
 ## Project Structure
 
@@ -40,6 +40,18 @@ A comprehensive image inpainting project implementing multiple methods including
 │   └── scripts/                  # Utility scripts
 │       ├── cross_validation.py   # Cross-validation for k optimization
 │       └── nearest_neighbors.py  # k-NN inpainting pipeline
+├── CelebAMask-HQ/              # CelebA-MaskHQ dataset (optional)
+│   ├── CelebA-HQ-img/          # 256x256 face images
+│   └── CelebAMask-HQ-mask-anno/ # Feature masks (hair, eyes, etc.)
+├── RePaint/                    # RePaint implementation (optional)
+│   ├── confs/                  # Configuration files
+│   │   ├── celeba_256_20.yml  # 20% mask level
+│   │   ├── celeba_256_40.yml  # 40% mask level
+│   │   ├── celeba_256_60.yml  # 60% mask level
+│   │   └── celeba_256_80.yml  # 80% mask level
+│   ├── guided_diffusion/       # Core RePaint code
+│   │   └── custom_dataset.py   # Custom dataset loader for CelebA-MaskHQ
+│   └── test.py                 # Main inference script
 ├── dataset/                      # Dataset directory
 │   ├── lfw_100_people/          # LFW dataset images
 │   ├── celeba_hq_256/          # CelebA-HQ images
@@ -56,6 +68,10 @@ A comprehensive image inpainting project implementing multiple methods including
 - **Baseline Methods**: k-NN interpolation (uniform and distance-weighted), Navier-Stokes inpainting
 - **Neural Processes**: Conditional Neural Process (CNP) and Convolutional Neural Process (ConvCNP)
 - **Diffusion Models**: RePaint using Hugging Face Diffusers
+- **256x256 Resolution**: Direct use of CelebA-MaskHQ 256x256 images
+- **Feature Masks**: Uses semantic feature masks (hair, eyes, brows, mouth, nose, etc.)
+- **Multiple Mask Levels**: Configurations for 20%, 40%, 60%, and 80% mask coverage
+- **RePaint Integration**: Custom dataset loader that handles CelebA-MaskHQ structure
 - **Cross-Validation**: Automatic k-value optimization for k-NN methods
 - **Comprehensive Evaluation**: PSNR, SSIM metrics with detailed statistics
 - **Visualization**: Comparison plots, error heatmaps, comprehensive visualizations
@@ -91,8 +107,25 @@ dataset/
 ├── 20/                     # Mask images for LFW (20% level)
 ├── 40/                     # Mask images for LFW (40% level)
 ├── 60/                     # Mask images for LFW (60% level)
-└── 80/                     # Mask images for LFW (80% level)
+└── 80/                     # Mask images for LFW (60% level)
 ```
+
+### 4. Download CelebA-MaskHQ Dataset (Optional)
+
+If using the CelebA-MaskHQ dataset, download it and place it in the project root:
+- `CelebAMask-HQ/CelebA-HQ-img/` - Face images (256x256)
+- `CelebAMask-HQ/CelebAMask-HQ-mask-anno/` - Feature masks
+
+### 5. Download Pre-trained Model (Optional)
+
+If using the RePaint implementation directly:
+
+```bash
+cd RePaint
+bash download.sh
+```
+
+This downloads the pre-trained CelebA 256x256 diffusion model to `RePaint/data/pretrained/celeba256_250000.pt`
 
 ## Usage
 
@@ -178,6 +211,8 @@ python src/evaluation/evaluate_np.py \
 
 ### Diffusion Model (RePaint)
 
+#### Using Hugging Face Diffusers
+
 ```bash
 # Run RePaint on CelebA dataset
 python src/inpainting/run_repaint_hf.py \
@@ -196,6 +231,13 @@ python src/inpainting/run_repaint_hf.py \
     --mask_levels 20 40 \
     --num_images 2 \
     --num_inference_steps 50
+```
+
+#### Using RePaint Implementation Directly
+
+```bash
+# Evaluate results
+python evaluate_metrics.py
 ```
 
 ### Visualization
@@ -259,6 +301,39 @@ results_np/
     └── ...
 ```
 
+## Configuration
+
+### RePaint Configuration Files
+
+Each config file (`celeba_256_XX.yml`) contains:
+
+- **Model settings**: Architecture parameters for 256x256 images
+- **Data paths**: 
+  - `gt_path`: Path to CelebA-HQ-img directory
+  - `mask_path`: Path to CelebAMask-HQ-mask-anno directory
+- **Output paths**: Where to save inpainted results
+- **Processing settings**: Batch size, max images, etc.
+
+### Key Settings
+
+- `image_size: 256` - Image resolution
+- `use_celeba_maskhq: true` - Enable CelebA-MaskHQ feature mask loading
+- `random_mask: true` - Randomly select feature masks per image
+- `max_len: 100` - Process only first 100 images (for testing)
+
+## Dataset Format
+
+### Images
+- Location: `CelebAMask-HQ/CelebA-HQ-img/` or `dataset/celeba_hq_256/`
+- Format: JPG/PNG files
+- Resolution: 256x256
+
+### Mask Format
+
+RePaint expects masks where:
+- **White (255) = KEEP** (known regions)
+- **Black (0) = GENERATE** (unknown regions)
+
 ## Metrics
 
 All methods are evaluated using:
@@ -283,6 +358,7 @@ python src/inpainting/run_inpainting.py --help
 - Pillow
 - tqdm
 - diffusers, transformers, accelerate (for RePaint)
+- PyYAML, blobfile (for RePaint implementation)
 
 See `requirements.txt` for complete list with versions.
 
